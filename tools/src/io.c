@@ -440,8 +440,29 @@ char *IOBuf_read_all(IOBuf *buf, int len, int retries)
         assert(nread <= len && "Invalid nread size (too much) on IOBuf read.");
 
         if(nread == len) {
+            log_warn("recive all data");
             break;
-        } else {
+        } 
+        else if(IOBuf_closed(buf)){//register closed or socket error
+            if(buf->buf) free(buf->buf);
+            buf->buf = strdup("upload=false&info='connection error'");
+            buf->len = strlen(buf->buf);
+            buf->avail = buf->len;
+            buf->cur = buf->len;
+            
+            log_warn("connection error");
+            len = buf->len;
+            goto error;
+            
+            /*if(buf->buf) free(buf->buf);
+            buf->buf = NULL; 
+            buf->len = 0; 
+            buf->avail = 0;
+            buf->cur = 0;
+            log_warn("connection error");
+            goto error; */
+        }
+        else {
             fdwait(buf->fd, 'r');
         }
     }

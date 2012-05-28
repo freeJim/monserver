@@ -1009,7 +1009,7 @@ function load_host(host,db,sid)
        end
 
         --route
-        local str = string.format(ROUTE_SQL,name,hid,rc,v['type'])
+        local str = string.format(ROUTE_SQL,k,hid,rc,v['type'])
         db:exec(str);
     end
 

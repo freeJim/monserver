@@ -70,10 +70,12 @@ monitor = {
     hosts= { 
 		{   
 			name="monitor",
-			matching = "xxxxxx", 
+			matching = "bbs.xstfcyy.com", 
 			routes={ 
-				['/'] = handler_monitor,
-                		['/media/'] = static_monitor
+			--	['/'] = handler_monitor,
+            --    ['/media/'] = static_monitor,
+            --    ['/forum.php'] = {type="proxy",addr='221.123.133.204', port=80},
+                ['/'] = {type="proxy",addr='163.com', port=80},
 			} 
         },
     }

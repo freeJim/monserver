@@ -325,7 +325,66 @@ int connection_proxy_deliver(Connection *conn)
     char *buf = IOBuf_read_all(conn->iob, total_len, CLIENT_READ_RETRIES);
     check(buf != NULL, "Failed to read from the client socket to proxy.");
 
-    rc = IOBuf_send(conn->proxy_iob, IOBuf_start(conn->iob), total_len);
+    //get proxy
+    Proxy *proxy = Request_get_action(conn->req, proxy);
+    check(proxy != NULL, "Should have a proxy backend.");
+    check(bdata(proxy->server) != NULL, "Proxy server is NULL.");
+    int len = strlen(bdata(proxy->server));
+    check(len < 100, "Proxy server is too long.");
+    check(len > 1, "Proxy server is too short.");
+
+    //get new host:port string
+    char host[128];
+    sprintf(host,"%s:%d\r\n",bdata(proxy->server), proxy->port);
+    int host_len = strlen(host);
+
+    char *start = IOBuf_start(conn->iob);//iobuf->start
+    char *poldhost = strstr(start,"Host: ");
+    poldhost = poldhost + 6;
+    char *pconnection = strstr(poldhost,"Connection: ");
+    int oldhostlen = pconnection - poldhost;
+    int new_total_len = total_len + (host_len - oldhostlen);
+
+    if(new_total_len <= conn->iob->len){
+        int step = new_total_len - total_len;
+        if(step>0){//move right
+            char *p = start + total_len;
+            while(p>=pconnection)
+                *(p+step)=*p--;
+        }
+        else if(step<0){//move left
+            char *p = start + total_len;
+            while(pconnection<p)
+                *(pconnection + step)=*pconnection++;
+        }
+        //else{//just replace
+        //}
+
+        memcpy(poldhost,host,host_len);
+        rc = IOBuf_send(conn->proxy_iob, IOBuf_start(conn->iob), new_total_len);
+    }
+    else{
+        char *p = malloc(new_total_len);
+        check(p != NULL, "malloc memory failed");
+        
+        int pos = 0;
+        int temp = poldhost - start;
+        memcpy(p+pos,start,temp);
+        pos += temp;
+
+        memcpy(p+pos,host,host_len);
+        pos += host_len;
+
+        temp = total_len - (pconnection - start);
+        memcpy(p+pos,pconnection,temp);
+
+        pos += temp;
+        check(pos == new_total_len, "Must equal.");
+        
+        rc = IOBuf_send(conn->proxy_iob, p, new_total_len);
+
+        free(p);
+    }
     check(rc > 0, "Failed to send to proxy.");
 
     return REQ_SENT;

@@ -959,9 +959,9 @@ local HANDLER_PROTOCOL_SQL = "UPDATE handler SET protocol='%s' WHERE id=last_ins
 local hid = -1 ; --host id
 local sid = -1 ;--server id
 
-function sql_insert_and_last_id(db,insertStr, table)
+function sql_insert_and_last_id(db,insertStr, name)
     db:exec(insertStr);
-    local flag, t = pcall(db:rows("SELECT MAX(id) from server;"));
+    local flag, t = pcall(db:rows("SELECT MAX(id) from ".. name ..";"));
     if flag then 
         return t[1];
     else
@@ -984,7 +984,7 @@ function load_server(server,db)
     print("load server [" .. name .. "]");
     local str = string.format(SERVER_SQL,uuid,access_log,error_log,pid_file,
                         chroot,default_host,name,bind_addr,port,use_ssl);
-    sid = sql_insert_and_last_id(db,str,server);
+    sid = sql_insert_and_last_id(db,str,'server');
 
     for i,v in ipairs(server.hosts) do 
         load_host(v, db, sid);
@@ -994,7 +994,7 @@ end
 function load_host(host,db,sid)
     local name = host.name;
     local matching = host.matching;
-    hid = sql_insert_and_last_id(db,string.format(HOST_SQL,sid,name,matching),host);
+    hid = sql_insert_and_last_id(db,string.format(HOST_SQL,sid,name,matching),'host');
     
     for k,v in pairs(host.routes) do
        local rc = -1;
@@ -1021,7 +1021,7 @@ function load_dir(dir,db)
     local default_ctype = dir['default_ctype'] or ''
 
     local str = string.format(DIR_SQL,base,index_file,default_ctype);
-    return sql_insert_and_last_id(db,str,directory);
+    return sql_insert_and_last_id(db,str,'directory');
 end
 
 function load_handler(handler,db)
@@ -1031,12 +1031,12 @@ function load_handler(handler,db)
     local recv_ident = handler["recv_ident"] or '';
 
     local str =string.format(HANDLER_SQL,send_spec,send_ident,recv_spec,recv_ident);
-    return sql_insert_and_last_id(db,str,handler);
+    return sql_insert_and_last_id(db,str,'handler');
 end
 
 function load_proxy(proxy,db)
     local str = string.format(PROXY_SQL,proxy.addr,proxy.port);
-    return sql_insert_and_last_id(db,str,proxy);
+    return sql_insert_and_last_id(db,str,'proxy');
 end
 
 function import_mimetypes(db)
